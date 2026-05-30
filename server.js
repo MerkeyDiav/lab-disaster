@@ -40,11 +40,11 @@ async function initDatabase() {
     `);
 
     dbConnected = true;
-    console.log('✅ Database connection established successfully');
+    console.log(' Database connection established successfully');
   } catch (error) {
     dbConnected = false;
-    console.error('❌ Database connection failed:', error.message);
-    console.error('⚠️  The app will continue running, but database operations will fail.');
+    console.error(' Database connection failed:', error.message);
+    console.error('  The app will continue running, but database operations will fail.');
     console.error('Ensure your RDS endpoint, credentials, and security group are correct.');
   }
 }
@@ -102,6 +102,39 @@ app.post('/api/todos', async (req, res) => {
   }
 });
 
+// API: Bulk seed test data (for simulation during lab)
+app.post('/api/seed', async (req, res) => {
+  try {
+    if (!dbConnected || !dbConnection) {
+      return res.status(503).json({
+        error: true,
+        message: 'Database connection unavailable',
+      });
+    }
+
+    // Prepare 50 test tasks
+    const bulkValues = [];
+    for (let i = 1; i <= 50; i++) {
+      bulkValues.push([`📊 Test Task #${i} - Disaster Recovery Lab Simulation`]);
+    }
+
+    // Bulk insert into database
+    await dbConnection.query('INSERT INTO todos (title) VALUES ?', [bulkValues]);
+
+    res.json({
+      error: false,
+      message: '🚀 Simulation successful: 50 test tasks injected into RDS!',
+      count: 50,
+    });
+  } catch (error) {
+    console.error('POST /api/seed error:', error.message);
+    res.status(500).json({
+      error: true,
+      message: 'Failed to generate test tasks',
+    });
+  }
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
@@ -120,9 +153,9 @@ app.get('/', (req, res) => {
 initDatabase();
 
 app.listen(PORT, () => {
-  console.log(`\n🚀 AWS DR Lab App running on http://localhost:${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`💾 Database status: ${dbConnected ? 'CONNECTED' : 'DISCONNECTED'}\n`);
+  console.log(`\n AWS DR Lab App running on http://localhost:${PORT}`);
+  console.log(` Health check: http://localhost:${PORT}/health`);
+  console.log(` Database status: ${dbConnected ? 'CONNECTED' : 'DISCONNECTED'}\n`);
 });
 
 // Graceful shutdown

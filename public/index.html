@@ -265,6 +265,7 @@
           autocomplete="off"
         >
         <button id="addButton" onclick="addTodo()">Ajouter</button>
+        <button id="seedButton" onclick="triggerBulkSimulation()" style="background: #4a4a4a; border-color: #666;">📊 Simuler 50</button>
       </div>
       <div class="success-message" id="successMessage">✅ Tâche ajoutée avec succès!</div>
       <div class="refresh-info">
@@ -388,6 +389,37 @@
       } finally {
         button.disabled = false;
         button.textContent = 'Ajouter';
+      }
+    }
+
+    async function triggerBulkSimulation() {
+      const button = document.getElementById('seedButton');
+      const originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = '⏳ Génération...';
+
+      try {
+        const response = await fetch(`${API_BASE}/seed`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+          updateStatusBadge(false);
+          alert('Erreur: ' + data.message);
+        } else {
+          alert(`✅ ${data.message}\n\n${data.count} tâches injectées!`);
+          await loadTodos();
+        }
+      } catch (error) {
+        console.error('Error during bulk simulation:', error);
+        updateStatusBadge(false);
+        alert('Erreur lors de la génération. La base de données est peut-être indisponible.');
+      } finally {
+        button.disabled = false;
+        button.textContent = originalText;
       }
     }
 
