@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AWS DR Lab - Todo App</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+      color: #fff;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-top: 20px;
+    }
+
+    .header h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+      letter-spacing: 1px;
+    }
+
+    .header p {
+      font-size: 0.9em;
+      color: #aaa;
+      margin-bottom: 5px;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 0.85em;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    .status.connected {
+      background: #2a5a2a;
+      color: #7cff7c;
+      border: 1px solid #5a9a5a;
+    }
+
+    .status.disconnected {
+      background: #5a2a2a;
+      color: #ff7c7c;
+      border: 1px solid #9a5a5a;
+    }
+
+    .error-banner {
+      background: #5a2a2a;
+      border: 2px solid #ff7c7c;
+      border-radius: 4px;
+      padding: 15px;
+      margin-bottom: 20px;
+      color: #ff7c7c;
+      display: none;
+    }
+
+    .error-banner.show {
+      display: block;
+    }
+
+    .error-banner strong {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .form-section {
+      background: #262626;
+      padding: 20px;
+      border-radius: 4px;
+      margin-bottom: 30px;
+      border: 1px solid #404040;
+    }
+
+    .form-section h2 {
+      font-size: 1.1em;
+      margin-bottom: 15px;
+      color: #fff;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #404040;
+      border-radius: 4px;
+      background: #1a1a1a;
+      color: #fff;
+      font-size: 1em;
+      transition: border-color 0.3s;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #666;
+    }
+
+    input[type="text"]::placeholder {
+      color: #666;
+    }
+
+    button {
+      padding: 12px 30px;
+      background: #333;
+      color: #fff;
+      border: 1px solid #555;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1em;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+
+    button:hover {
+      background: #444;
+      border-color: #777;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .todos-section {
+      background: #262626;
+      padding: 20px;
+      border-radius: 4px;
+      border: 1px solid #404040;
+    }
+
+    .todos-section h2 {
+      font-size: 1.1em;
+      margin-bottom: 15px;
+      color: #fff;
+    }
+
+    .todo-item {
+      background: #1a1a1a;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      border-left: 3px solid #555;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .todo-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .todo-content {
+      flex: 1;
+    }
+
+    .todo-title {
+      color: #fff;
+      font-size: 1em;
+      margin-bottom: 5px;
+    }
+
+    .todo-time {
+      color: #888;
+      font-size: 0.85em;
+    }
+
+    .empty-message {
+      text-align: center;
+      color: #888;
+      padding: 40px 20px;
+      font-style: italic;
+    }
+
+    .loading {
+      text-align: center;
+      color: #888;
+      padding: 20px;
+    }
+
+    .loader {
+      border: 2px solid #404040;
+      border-top: 2px solid #666;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 10px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .success-message {
+      background: #2a5a2a;
+      border: 1px solid #5a9a5a;
+      border-radius: 4px;
+      padding: 10px 15px;
+      color: #7cff7c;
+      margin-top: 10px;
+      display: none;
+      font-size: 0.9em;
+    }
+
+    .success-message.show {
+      display: block;
+    }
+
+    .refresh-info {
+      text-align: center;
+      color: #888;
+      font-size: 0.85em;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📋 Todo App</h1>
+      <p>AWS Disaster Recovery Lab</p>
+      <div class="status connected" id="statusBadge">🟢 Database Connected</div>
+    </div>
+
+    <div class="error-banner" id="errorBanner">
+      <strong>⚠️ Database Connection Failed</strong>
+      <p id="errorMessage"></p>
+    </div>
+
+    <div class="form-section">
+      <h2>Ajouter une tâche</h2>
+      <div class="input-group">
+        <input
+          type="text"
+          id="todoInput"
+          placeholder="Tapez votre tâche..."
+          autocomplete="off"
+        >
+        <button id="addButton" onclick="addTodo()">Ajouter</button>
+      </div>
+      <div class="success-message" id="successMessage">✅ Tâche ajoutée avec succès!</div>
+      <div class="refresh-info">
+        Les tâches se mettent à jour automatiquement
+      </div>
+    </div>
+
+    <div class="todos-section">
+      <h2>Liste des tâches</h2>
+      <div id="todosList"></div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = '/api';
+    const REFRESH_INTERVAL = 2000; // Auto-refresh every 2 seconds
+    let autoRefreshInterval;
+
+    async function checkDatabaseStatus() {
+      try {
+        const response = await fetch('/health');
+        const data = await response.json();
+        updateStatusBadge(data.database === 'connected');
+        return data.database === 'connected';
+      } catch (error) {
+        updateStatusBadge(false);
+        return false;
+      }
+    }
+
+    function updateStatusBadge(isConnected) {
+      const badge = document.getElementById('statusBadge');
+      const banner = document.getElementById('errorBanner');
+
+      if (isConnected) {
+        badge.textContent = '🟢 Database Connected';
+        badge.className = 'status connected';
+        banner.classList.remove('show');
+      } else {
+        badge.textContent = '🔴 Database Disconnected';
+        badge.className = 'status disconnected';
+        document.getElementById('errorMessage').textContent =
+          'Connection to RDS failed. Check your credentials, endpoint, and Security Group.';
+        banner.classList.add('show');
+      }
+    }
+
+    async function loadTodos() {
+      try {
+        const response = await fetch(`${API_BASE}/todos`);
+        const data = await response.json();
+
+        if (data.error) {
+          updateStatusBadge(false);
+        } else {
+          updateStatusBadge(true);
+        }
+
+        const todosList = document.getElementById('todosList');
+
+        if (!data.todos || data.todos.length === 0) {
+          todosList.innerHTML = '<div class="empty-message">Aucune tâche pour le moment. Ajoutez-en une!</div>';
+          return;
+        }
+
+        todosList.innerHTML = data.todos
+          .map(todo => `
+            <div class="todo-item">
+              <div class="todo-content">
+                <div class="todo-title">${escapeHtml(todo.title)}</div>
+                <div class="todo-time">${formatTime(todo.created_at)}</div>
+              </div>
+            </div>
+          `)
+          .join('');
+      } catch (error) {
+        console.error('Error loading todos:', error);
+        updateStatusBadge(false);
+        document.getElementById('todosList').innerHTML =
+          '<div class="empty-message">Erreur de chargement. La base de données est peut-être indisponible.</div>';
+      }
+    }
+
+    async function addTodo() {
+      const input = document.getElementById('todoInput');
+      const title = input.value.trim();
+
+      if (!title) {
+        alert('Veuillez entrer une tâche!');
+        return;
+      }
+
+      const button = document.getElementById('addButton');
+      button.disabled = true;
+      button.textContent = '⏳ Ajout...';
+
+      try {
+        const response = await fetch(`${API_BASE}/todos`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title }),
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+          updateStatusBadge(false);
+          alert('Erreur: ' + data.message);
+        } else {
+          input.value = '';
+          document.getElementById('successMessage').classList.add('show');
+          setTimeout(() => {
+            document.getElementById('successMessage').classList.remove('show');
+          }, 3000);
+          await loadTodos();
+        }
+      } catch (error) {
+        console.error('Error adding todo:', error);
+        updateStatusBadge(false);
+        alert('Erreur lors de l\'ajout. La base de données est peut-être indisponible.');
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Ajouter';
+      }
+    }
+
+    function formatTime(timestamp) {
+      if (!timestamp) return '';
+      const date = new Date(timestamp);
+      return date.toLocaleString('fr-FR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+    }
+
+    function escapeHtml(text) {
+      const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;',
+      };
+      return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    // Allow adding todo by pressing Enter
+    document.getElementById('todoInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        addTodo();
+      }
+    });
+
+    // Initialize
+    checkDatabaseStatus();
+    loadTodos();
+    autoRefreshInterval = setInterval(loadTodos, REFRESH_INTERVAL);
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+      clearInterval(autoRefreshInterval);
+    });
+  </script>
+</body>
+</html>
